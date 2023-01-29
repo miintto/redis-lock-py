@@ -1,14 +1,14 @@
 import time
 
-from redis import Redis
-from redis.client import PubSub
+from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
 
-from redis_lock.base import BaseSyncLock
+from redis_lock.asyncio.base import BaseAsyncLock
 from redis_lock.exceptions import LockNotOwnedError
 from redis_lock.types import LockKey
 
 
-class RedisLock(BaseSyncLock):
+class RedisLock(BaseAsyncLock):
 
     unlock_message = b"ok"
 
@@ -31,19 +31,19 @@ class RedisLock(BaseSyncLock):
     def channel_name(self) -> str:
         return f"rlock-channel:{self.name}"
 
-    def _try_acquire(self) -> bool:
-        if self._client.set(self.name, self.token, nx=True, ex=self._ex):
+    async def _try_acquire(self) -> bool:
+        if await self._client.set(self.name, self.token, nx=True, ex=self._ex):
             return True
         return False
 
-    def _subscribe_channel(self, pubsub: PubSub):
+    async def _subscribe_channel(self, pubsub: PubSub):
         if not pubsub.subscribed:
-            pubsub.subscribe(self.channel_name)
+            await pubsub.subscribe(self.channel_name)
 
-    def _wait_for_message(self, pubsub: PubSub, timeout: int) -> bool:
+    async def _wait_for_message(self, pubsub: PubSub, timeout: int) -> bool:
         break_time = time.time() + timeout
         while True:
-            message = pubsub.get_message(
+            message = await pubsub.get_message(
                 ignore_subscribe_messages=True, timeout=timeout
             )
             if not message and break_time < time.time():
@@ -55,34 +55,34 @@ class RedisLock(BaseSyncLock):
             ):
                 return True
 
-    def acquire(self) -> bool:
+    async def acquire(self) -> bool:
         """Try to acquire a lock
 
         Returns:
             bool: `True` if the lock was acquired, `False` otherwise.
         """
         timeout = self._blocking_timeout
-        if self._try_acquire():
+        if await self._try_acquire():
             return True
 
-        with self._client.pubsub() as pubsub:
-            self._subscribe_channel(pubsub)
+        async with self._client.pubsub() as pubsub:
+            await self._subscribe_channel(pubsub)
             stop_trying_at = time.time() + timeout
             while True:
-                self._wait_for_message(pubsub, timeout=timeout)
+                await self._wait_for_message(pubsub, timeout=timeout)
                 if stop_trying_at < time.time():
                     return False
-                elif self._try_acquire():
+                elif await self._try_acquire():
                     return True
 
-    def release(self) -> bool:
+    async def release(self) -> bool:
         """Release the owned lock
 
         Returns:
             bool: `True` if the lock was successfully released,
                 `False` otherwise.
         """
-        if not self.lua_release(
+        if not await self.lua_release(
             keys=(self.name, self.channel_name),
             args=(self.token, self.unlock_message),
         ):

@@ -2,10 +2,8 @@ from abc import ABC, abstractmethod
 import uuid
 from typing import Optional
 
-from redis.client import Redis
-
 from redis_lock.exceptions import AcquireFailedError, InvalidArgsError
-from redis_lock.types import LockKey, TimeOut
+from redis_lock.types import LockKey, RedisClient, TimeOutType
 
 
 class BaseLock(ABC):
@@ -14,10 +12,10 @@ class BaseLock(ABC):
 
     def __init__(
         self,
-        client: Redis,
+        client: RedisClient,
         name: LockKey = None,
         blocking_timeout: int = default_blocking_timeout,
-        expire_timeout: Optional[TimeOut] = None,
+        expire_timeout: Optional[TimeOutType] = None,
     ):
         """Base Redis lock interface
 
@@ -36,14 +34,6 @@ class BaseLock(ABC):
         self._validate_timeout(blocking_timeout)
         self._blocking_timeout = blocking_timeout
         self._ex = expire_timeout
-
-    def __enter__(self):
-        if self.acquire():
-            return self
-        raise AcquireFailedError("Failed to acquire a lock.")
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.release()
 
     @property
     def name(self) -> LockKey:
@@ -70,6 +60,18 @@ class BaseLock(ABC):
                 "cannot be negative."
             )
 
+
+class BaseSyncLock(BaseLock):
+    """Base Redis lock implementation"""
+
+    def __enter__(self):
+        if self.acquire():
+            return self
+        raise AcquireFailedError("Failed to acquire a lock.")
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.release()
+
     @abstractmethod
     def acquire(self, *args, **kwargs):
         """Try to acquire a lock"""
@@ -81,5 +83,5 @@ class BaseLock(ABC):
     def release(self):
         """Release the owned lock"""
         raise NotImplementedError(
-            "The `release` methoe should be implemented!"
+            "The `release` method should be implemented!"
         )

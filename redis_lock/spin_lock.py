@@ -1,10 +1,10 @@
 import time
 
-from redis_lock.base import BaseLock
+from redis_lock.base import BaseSyncLock
 from redis_lock.exceptions import LockNotOwnedError
 
 
-class RedisSpinLock(BaseLock):
+class RedisSpinLock(BaseSyncLock):
 
     # keys: (Lock.name,)
     # args (Lock.token,)
