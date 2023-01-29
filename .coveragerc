@@ -1,0 +1,7 @@
+[run]
+source = redis_lock
+
+[report]
+exclude_lines =
+    pragma: no cover
+show_missing=True
