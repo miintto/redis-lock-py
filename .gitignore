@@ -1,5 +1,10 @@
 # == Gitignore Files == #
 
+# Packages
+dist/
+build/
+*.egg-info/
+
 # - Virtual Environment
 venv/
 .venv/
