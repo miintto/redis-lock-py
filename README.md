@@ -1,15 +1,18 @@
+[![License](https://img.shields.io/badge/license-MIT-lightgray.svg)](./LICENSE)
+[![PyPI Release](https://img.shields.io/pypi/v/redis-lock-py)](https://pypi.org/project/redis-lock-py/)
+![Python Support](https://img.shields.io/pypi/pyversions/redis-lock-py)
+![Implementation](https://img.shields.io/pypi/implementation/redis-lock-py.svg)
+
 # Redis Lock with PubSub
 
 Redis distributed lock implementation for Python base on Pub/Sub messaging.
 
 ## 1. Features
 
-- SETNX를 통한 원자성 보장
-- Pub/Sub 시스템으로 message를 받은 경우만 락 획득 재시도
-- Timeout을 강제하여 무한 대기 방지
-
-동시성 이슈 해결이 필요한 경우 분산 락(distributed lock) 구현체로 활용할 수 있습니다.
-기존 [redis-py](https://github.com/redis/redis-py)에 내장된 spin lock 대신 Pub/Sub 방식을 적용하여 서버의 부하를 최소화 하였습니다.
+- Ensure atomicity by using SETNX operation
+- Pub/Sub messaging system between the client waiting to get the lock and holding the lock
+- Force timeout to avoid infinite loops when trying to acquire lock
+- Async is supported
 
 ## 2. Installation
 
@@ -39,9 +42,8 @@ print("Acquired lock successfully!")
 lock.release()
 ```
 
-기본적인 사용 예제입니다.
-커넥션으로 [redis-py](https://github.com/redis/redis-py) 클라이언트 객체를 활용하였습니다.
-`RedisLock.acquire` 메소드를 호출하여 락을 획득한 경우 결과로 참을 반환하는데, 해당 경우 주어진 작업을 진행한 후 `RedisLock.release`를 호출하여 락을 반환합니다.
+[redis-py](https://github.com/redis/redis-py) library is required for redis connection objects.
+The `RedisLock.release` method must be invoked to release the lock after acquiring a lock successfully by calling `RedisLock.acquire` method with returned `True`.
 
 ### 3.2 Using Context Managers
 
@@ -55,9 +57,10 @@ with RedisLock(client, "foo", blocking_timeout=10):
     print("Acquired lock successfully!")
 ```
 
-성공적으로 락을 획득하였지만 다시 락을 반환하는 부분이 누락된다면 이후 동일한 `name`으로 접근하는 다른 클라이언트들은 모두 락을 획득하지 못할 수 있습니다.
-이런 경우를 미연에 방지하고자 `with` 구문이 끝날 때 락을 해제하도록 프로그래밍적으로 강제하였습니다.
-두 예시 **2.1**, **2.2** 코드는 모두 동일하게 동작합니다.
+If the part that releases the lock is missing after acquire a lock, 
+all the clients that access the same `name` may not be able to acquire the lock.
+To prevent this unexpected malfunction from happening, programmed to unlock the lock by itself at the end of the `with` context.
+Both examples in **3.1** and **3.2** work the same way.
 
 ### 3.3 Using Spin Lock
 
@@ -74,9 +77,8 @@ print("Acquired lock successfully!")
 lock.release()
 ```
 
-Spin lock도 사용 가능합니다.
-기본적인 동작 방식은 비슷하지만 `RedisSpinLock.acquire` 메소드에서 추가적으로 blocking 여부와 sleep time을 입력받습니다.
-특별한 이유가 없다면 `RedisLock` 사용을 권장드립니다.
+Spin lock is also available,
+but not recommended unless there is a compelling reason to use them because of inefficiency compare to the Pub/Sub messaging system.
 
 ### System Flow
 
