@@ -5,7 +5,7 @@
 
 # Redis Lock with PubSub
 
-Redis distributed lock implementation for Python base on Pub/Sub messaging.
+Redis distributed lock implementation for Python based on Pub/Sub messaging.
 
 ## 1. Features
 
