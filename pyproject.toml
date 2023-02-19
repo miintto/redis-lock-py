@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "redis-lock-py"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     { name = "Minjae Park", email = "miintto.log@gmail.com" },
 ]
@@ -12,7 +12,7 @@ description = "Redis distributed lock implementation for Python based on Pub/Sub
 readme = "README.md"
 requires-python = ">=3.7"
 license = "MIT"
-classifiers=[
+classifiers = [
     'Development Status :: 3 - Alpha',
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
