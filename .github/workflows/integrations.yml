@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: TEST ${{ python-version }}
+    name: TEST ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
