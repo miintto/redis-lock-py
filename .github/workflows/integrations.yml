@@ -37,3 +37,5 @@ jobs:
     - name: RUN TEST
       run: |
         coverage run -m pytest tests
+    - name: UPLOAD COVERAGE
+      uses: codecov/codecov-action@v3
