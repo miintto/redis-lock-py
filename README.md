@@ -1,5 +1,6 @@
 [![License](https://img.shields.io/badge/license-MIT-lightgray.svg)](./LICENSE)
 [![PyPI Release](https://img.shields.io/pypi/v/redis-lock-py)](https://pypi.org/project/redis-lock-py/)
+[![Downloads](https://static.pepy.tech/badge/redis-lock-py)](https://pepy.tech/project/redis-lock-py)
 ![Python Support](https://img.shields.io/pypi/pyversions/redis-lock-py)
 ![Implementation](https://img.shields.io/pypi/implementation/redis-lock-py.svg)
 [![codecov](https://codecov.io/gh/miintto/redis-lock-py/branch/master/graph/badge.svg?token=I9A9JKIWKF)](https://codecov.io/gh/miintto/redis-lock-py)
