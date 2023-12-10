@@ -82,6 +82,20 @@ lock.release()
 Spin lock is also available,
 but not recommended unless there is a compelling reason to use them because of inefficiency compare to the Pub/Sub messaging system.
 
+### 3.4 With Asyncio
+
+```python
+from redis.asyncio import Redis
+from redis_lock.asyncio import RedisLock
+
+client = Redis(host="127.0.0.1", port=6379)
+
+async with RedisLock(client, "foo", blocking_timeout=10):
+    print("Acquired lock successfully!")
+```
+
+**redis-lock** supports asyncio platform.
+
 ### System Flow
 
 ![redis-lock-flow](https://user-images.githubusercontent.com/37063580/215324117-ff55fc4e-cc14-42c1-8628-e472adf8b865.png)
