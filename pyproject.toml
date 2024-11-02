@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "redis-lock-py"
-version = "1.0.0"
+version = "1.1.0"
 authors = [
     { name = "Minjae Park", email = "miintto.log@gmail.com" },
 ]
