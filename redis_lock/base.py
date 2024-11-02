@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-import uuid
 from typing import Optional
+from uuid import uuid4
 
 from redis_lock.exceptions import AcquireFailedError, InvalidArgsError
 from redis_lock.types import LockKey, RedisClient, TimeOutType
@@ -9,6 +9,19 @@ from redis_lock.types import LockKey, RedisClient, TimeOutType
 class BaseLock(ABC):
 
     default_blocking_timeout = 60
+
+    unlock_message = b"ok"
+
+    # keys: (Lock.name, Lock.channel_name)
+    # args (Lock.token, Lock.unlock_message)
+    LUA_RELEASE = """
+        if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+            return 0
+        end
+        redis.call("DEL", KEYS[1])
+        redis.call("PUBLISH", KEYS[2], ARGV[2]);
+        return 1
+    """
 
     def __init__(
         self,
@@ -30,10 +43,11 @@ class BaseLock(ABC):
         if not name:
             raise InvalidArgsError("A `name` argument should be required.")
         self._name = name
-        self._uuid = uuid.uuid4().hex.encode()
+        self._uuid = uuid4().hex.encode()
         self._validate_timeout(blocking_timeout)
         self._blocking_timeout = blocking_timeout
         self._ex = expire_timeout
+        self.lua_release = self._client.register_script(self.LUA_RELEASE)
 
     @property
     def name(self) -> LockKey:
@@ -51,8 +65,7 @@ class BaseLock(ABC):
                 "time of initializing the `Lock` class."
             )
         elif (
-            not isinstance(blocking_timeout, int)
-            and not isinstance(blocking_timeout, float)
+            not isinstance(blocking_timeout, (int, float))
             or blocking_timeout < 0
         ):
             raise InvalidArgsError(

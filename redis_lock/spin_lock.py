@@ -16,10 +16,6 @@ class RedisSpinLock(BaseSyncLock):
         return 1
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.lua_release = self._client.register_script(self.LUA_RELEASE)
-
     def acquire(self, blocking: bool = True, sleep_time: float = 0.1) -> bool:
         """Try to acquire a lock
 

@@ -1,31 +1,12 @@
 import time
 
-from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
 
 from redis_lock.asyncio.base import BaseAsyncLock
 from redis_lock.exceptions import LockNotOwnedError
-from redis_lock.types import LockKey
 
 
 class RedisLock(BaseAsyncLock):
-
-    unlock_message = b"ok"
-
-    # keys: (Lock.name, Lock.channel_name)
-    # args (Lock.token, Lock.unlock_message)
-    LUA_RELEASE = """
-        if redis.call("GET", KEYS[1]) ~= ARGV[1] then
-            return 0
-        end
-        redis.call("DEL", KEYS[1])
-        redis.call("PUBLISH", KEYS[2], ARGV[2]);
-        return 1
-    """
-
-    def __init__(self, client: Redis, name: LockKey, *args, **kwargs):
-        super().__init__(client, name, *args, **kwargs)
-        self.lua_release = self._client.register_script(self.LUA_RELEASE)
 
     @property
     def channel_name(self) -> str:
