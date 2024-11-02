@@ -11,10 +11,10 @@ Redis distributed lock implementation for Python based on Pub/Sub messaging.
 
 ## 1. Features
 
-- Ensure atomicity by using SETNX operation
-- Pub/Sub messaging system between the client waiting to get the lock and holding the lock
-- Force timeout to avoid infinite loops when trying to acquire lock
-- Async is supported
+- Ensure atomicity by using the SETNX operation.
+- Implements a Pub/Sub messaging system between the client attempting to acquire the lock and the one currently holding it.
+- Includes a forced timeout mechanism to prevent infinite loops when attempting to acquire the lock.
+- Supports asynchronous operations.
 
 ## 2. Installation
 
@@ -23,8 +23,8 @@ $> pip install redis-lock-py
 ```
 
 ### Dependencies
-- Python >= 3.7
-- redis-py >= 4.2.0
+- Python >= 3.9
+- redis-py >= 5.2.0
 
 ## 3. Usage
 
@@ -44,8 +44,8 @@ print("Acquired lock successfully!")
 lock.release()
 ```
 
-[redis-py](https://github.com/redis/redis-py) library is required for redis connection objects.
-The `RedisLock.release` method must be invoked to release the lock after acquiring a lock successfully by calling `RedisLock.acquire` method with returned `True`.
+The [redis-py](https://github.com/redis/redis-py) library is required for Redis connection objects.
+After successfully acquiring the lock using `RedisLock.acquire`, ensure to release it by calling `RedisLock.release` to prevent lock retention.
 
 ### 3.2 Using Context Managers
 
@@ -55,34 +55,15 @@ from redis_lock import RedisLock
 
 client = redis.Redis(host="127.0.0.1", port=6379)
 
-with RedisLock(client, "foo", blocking_timeout=10):
+with RedisLock(client, name="foo", blocking_timeout=10):
     print("Acquired lock successfully!")
 ```
 
-If the part that releases the lock is missing after acquire a lock, 
-all the clients that access the same `name` may not be able to acquire the lock.
-To prevent this unexpected malfunction from happening, programmed to unlock the lock by itself at the end of the `with` context.
-Both examples in **3.1** and **3.2** work the same way.
+To avoid issues where the lock remains unreleased (potentially blocking other clients from acquiring it),
+you can use `RedisLock` with a context manager, which ensures that the lock is automatically released at the end of the `with` block.
+Both examples in sections **3.1** and **3.2** function in a same manner.
 
-### 3.3 Using Spin Lock
-
-```python
-import redis
-from redis_lock import RedisSpinLock
-
-client = redis.Redis(host="127.0.0.1", port=6379)
-
-lock = RedisSpinLock(client, "foo")
-if not lock.acquire(blocking=True, sleep_time=0.1):
-    raise Exception("Fail to acquire lock")
-print("Acquired lock successfully!")
-lock.release()
-```
-
-Spin lock is also available,
-but not recommended unless there is a compelling reason to use them because of inefficiency compare to the Pub/Sub messaging system.
-
-### 3.4 With Asyncio
+### 3.3 With Asyncio
 
 ```python
 from redis.asyncio import Redis
@@ -90,11 +71,29 @@ from redis_lock.asyncio import RedisLock
 
 client = Redis(host="127.0.0.1", port=6379)
 
-async with RedisLock(client, "foo", blocking_timeout=10):
+async with RedisLock(client, name="foo", blocking_timeout=10):
     print("Acquired lock successfully!")
 ```
 
-**redis-lock** supports asyncio platform.
+**redis-lock** supports the asyncio platform.
+
+### 3.4 Using Spin Lock
+
+```python
+import redis
+from redis_lock import RedisSpinLock
+
+client = redis.Redis(host="127.0.0.1", port=6379)
+
+lock = RedisSpinLock(client, name="foo")
+if not lock.acquire(blocking=True, sleep_time=0.1):
+    raise Exception("Fail to acquire lock")
+print("Acquired lock successfully!")
+lock.release()
+```
+
+While a spin lock is available,
+it is not recommended unless there is a compelling reason to use it, as it is less efficient compared to the Pub/Sub messaging system.
 
 ### System Flow
 
