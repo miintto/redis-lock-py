@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 from redis_lock.base import BaseSyncLock
 from redis_lock.exceptions import LockNotOwnedError
@@ -28,7 +29,7 @@ class RedisSpinLock(BaseSyncLock):
         Returns:
            bool: `True` if the lock was acquired, `False` otherwise.
         """
-        timeout = self._blocking_timeout
+        timeout = float(self._blocking_timeout)
 
         while True:
             current = time.time()
@@ -37,7 +38,7 @@ class RedisSpinLock(BaseSyncLock):
             elif not blocking:
                 return False
             time.sleep(sleep_time)
-            timeout -= (time.time() - current)
+            timeout -= time.time() - current
             if timeout < 0:
                 return False
 

@@ -1,8 +1,8 @@
 from datetime import timedelta
 from typing import Union
 
-from redis import Redis
+from redis.asyncio import Redis as AsyncRedis
 
-RedisClient = Redis
+RedisClient = AsyncRedis
 LockKey = Union[bytes, str]
 TimeOutType = Union[int, timedelta]

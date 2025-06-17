@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 from redis.asyncio.client import PubSub
 
@@ -10,7 +11,10 @@ class RedisLock(BaseAsyncLock):
 
     @property
     def channel_name(self) -> str:
-        return f"rlock-channel:{self.name}"
+        name: Optional[str] = None
+        if type(self.name) is bytes:
+            name = self.name.decode()
+        return f"rlock-channel:{name or self.name!r}"
 
     async def _try_acquire(self) -> bool:
         if await self._client.set(self.name, self.token, nx=True, ex=self._ex):
@@ -24,16 +28,10 @@ class RedisLock(BaseAsyncLock):
     async def _wait_for_message(self, pubsub: PubSub, timeout: int) -> bool:
         break_time = time.time() + timeout
         while True:
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=timeout
-            )
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=timeout)
             if not message and break_time < time.time():
                 return False
-            elif (
-                message
-                and message["type"] == "message"
-                and message["data"] == self.unlock_message
-            ):
+            elif message and message["type"] == "message" and message["data"] == self.unlock_message:
                 return True
 
     async def acquire(self) -> bool:

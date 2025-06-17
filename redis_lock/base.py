@@ -26,7 +26,7 @@ class BaseLock(ABC):
     def __init__(
         self,
         client: RedisClient,
-        name: LockKey = None,
+        name: Optional[LockKey] = None,
         blocking_timeout: int = default_blocking_timeout,
         expire_timeout: Optional[TimeOutType] = None,
     ):
@@ -61,16 +61,11 @@ class BaseLock(ABC):
     def _validate_timeout(blocking_timeout: int):
         if not blocking_timeout:
             raise InvalidArgsError(
-                "A `blocking_timeout` argument should be provided at the "
-                "time of initializing the `Lock` class."
+                "A `blocking_timeout` argument should be provided at the " "time of initializing the `Lock` class."
             )
-        elif (
-            not isinstance(blocking_timeout, (int, float))
-            or blocking_timeout < 0
-        ):
+        elif not isinstance(blocking_timeout, (int, float)) or blocking_timeout < 0:
             raise InvalidArgsError(
-                "A `blocking_timeout` argument should be integer of float and "
-                "cannot be negative."
+                "A `blocking_timeout` argument should be integer of float and " "cannot be negative."
             )
 
 
@@ -88,13 +83,9 @@ class BaseSyncLock(BaseLock):
     @abstractmethod
     def acquire(self, *args, **kwargs):
         """Try to acquire a lock"""
-        raise NotImplementedError(
-            "The `acquire` method should be implemented!"
-        )
+        raise NotImplementedError("The `acquire` method should be implemented!")
 
     @abstractmethod
     def release(self):
         """Release the owned lock"""
-        raise NotImplementedError(
-            "The `release` method should be implemented!"
-        )
+        raise NotImplementedError("The `release` method should be implemented!")
