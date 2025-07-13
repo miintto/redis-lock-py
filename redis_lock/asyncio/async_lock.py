@@ -21,7 +21,7 @@ class RedisLock(BaseAsyncLock):
         if not pubsub.subscribed:
             await pubsub.subscribe(self.channel_name)
 
-    async def _wait_for_message(self, pubsub: PubSub, timeout: int) -> bool:
+    async def _wait_for_message(self, pubsub: PubSub, timeout: float) -> bool:
         break_time = time.time() + timeout
         while True:
             message = await pubsub.get_message(
@@ -36,25 +36,42 @@ class RedisLock(BaseAsyncLock):
             ):
                 return True
 
-    async def acquire(self) -> bool:
+    async def acquire(
+        self,
+        pubsub_timeout: float = 0.5,
+        delay_interval: float = 0.5,
+    ) -> bool:
         """Try to acquire a lock
+
+        Args:
+            pubsub_timeout: Initial timeout (in seconds) for a Pub/Sub
+                subscription attempt. If the subscription fails, the timeout
+                increases gradually with each retry.
+            delay_interval: Initial delay (in seconds) between retries.
+                This delay increases exponentially with each retry.
 
         Returns:
             bool: `True` if the lock was acquired, `False` otherwise.
         """
-        timeout = self._blocking_timeout
         if await self._try_acquire():
             return True
 
         async with self._client.pubsub() as pubsub:
             await self._subscribe_channel(pubsub)
-            stop_trying_at = time.time() + timeout
+
+            stop_trying_at = time.time() + self._blocking_timeout
+            attempts = 0
             while True:
-                await self._wait_for_message(pubsub, timeout=timeout)
+                await self._wait_for_message(
+                    pubsub=pubsub,
+                    timeout=min(pubsub_timeout, (stop_trying_at - time.time())),
+                )
                 if stop_trying_at < time.time():
                     return False
                 elif await self._try_acquire():
                     return True
+                attempts += 1
+                pubsub_timeout += delay_interval * 2 ** attempts
 
     async def release(self) -> bool:
         """Release the owned lock
