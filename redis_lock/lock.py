@@ -21,7 +21,7 @@ class RedisLock(BaseSyncLock):
         if not pubsub.subscribed:
             pubsub.subscribe(self.channel_name)
 
-    def _wait_for_message(self, pubsub: PubSub, timeout: int) -> bool:
+    def _wait_for_message(self, pubsub: PubSub, timeout: float) -> bool:
         break_time = time.time() + timeout
         while True:
             message = pubsub.get_message(
@@ -36,25 +36,42 @@ class RedisLock(BaseSyncLock):
             ):
                 return True
 
-    def acquire(self) -> bool:
+    def acquire(
+        self,
+        pubsub_timeout: float = 0.5,
+        delay_interval: float = 0.5,
+    ) -> bool:
         """Try to acquire a lock
+
+        Args:
+            pubsub_timeout: Initial timeout (in seconds) for a Pub/Sub
+                subscription attempt. If the subscription fails, the timeout
+                increases gradually with each retry.
+            delay_interval: Initial delay (in seconds) between retries.
+                This delay increases exponentially with each retry.
 
         Returns:
             bool: `True` if the lock was acquired, `False` otherwise.
         """
-        timeout = self._blocking_timeout
         if self._try_acquire():
             return True
 
         with self._client.pubsub() as pubsub:
             self._subscribe_channel(pubsub)
-            stop_trying_at = time.time() + timeout
+
+            stop_trying_at = time.time() + self._blocking_timeout
+            attempts = 0
             while True:
-                self._wait_for_message(pubsub, timeout=timeout)
+                self._wait_for_message(
+                    pubsub=pubsub,
+                    timeout=min(pubsub_timeout, (stop_trying_at - time.time())),
+                )
                 if stop_trying_at < time.time():
                     return False
                 elif self._try_acquire():
                     return True
+                attempts += 1
+                pubsub_timeout += delay_interval * 2 ** attempts
 
     def release(self) -> bool:
         """Release the owned lock
