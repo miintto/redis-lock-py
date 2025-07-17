@@ -4,4 +4,5 @@ source = redis_lock
 [report]
 exclude_lines =
     pragma: no cover
+    NotImplementedError
 show_missing=True
