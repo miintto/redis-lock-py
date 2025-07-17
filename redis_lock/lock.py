@@ -80,7 +80,8 @@ class RedisLock(BaseSyncLock):
             bool: `True` if the lock was successfully released,
                 `False` otherwise.
         """
-        if not self.lua_release(
+        release_script = self._client.register_script(self.LUA_RELEASE)
+        if not release_script(
             keys=(self.name, self.channel_name),
             args=(self.token, self.unlock_message),
         ):

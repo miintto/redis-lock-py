@@ -48,6 +48,7 @@ class RedisSpinLock(BaseSyncLock):
             bool: `True` if the lock was successfully released,
                 `False` otherwise.
         """
-        if not self.lua_release(keys=(self.name,), args=(self.token,)):
+        release_script = self._client.register_script(self.LUA_RELEASE)
+        if not release_script(keys=(self.name,), args=(self.token,)):
             raise LockNotOwnedError("Unable to release non-owned lock.")
         return True

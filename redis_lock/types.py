@@ -1,9 +1,10 @@
-from typing import Union
+from typing import Optional, Union, TypeVar
 
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
 
-RedisClient = Union[Redis, AsyncRedis]
+RedisClient = TypeVar("RedisClient", Redis, AsyncRedis)
+
 LockKey = Union[bytes, str]
-TimeOutType = Union[float, int]
+TimeOutType = Optional[int]

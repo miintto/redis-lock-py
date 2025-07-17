@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Generic
 from uuid import uuid4
 
+from redis import Redis
 from redis_lock.exceptions import AcquireFailedError, InvalidArgsError
 from redis_lock.types import LockKey, RedisClient, TimeOutType
 
 
-class BaseLock(ABC):
+class BaseLock(Generic[RedisClient], ABC):
 
     default_blocking_timeout = 60
 
@@ -26,9 +27,9 @@ class BaseLock(ABC):
     def __init__(
         self,
         client: RedisClient,
-        name: LockKey = None,
-        blocking_timeout: int = default_blocking_timeout,
-        expire_timeout: Optional[TimeOutType] = None,
+        name: LockKey,
+        blocking_timeout: float = default_blocking_timeout,
+        expire_timeout: TimeOutType = None,
     ):
         """Base Redis lock interface
 
@@ -47,34 +48,37 @@ class BaseLock(ABC):
         self._validate_timeout(blocking_timeout)
         self._blocking_timeout = blocking_timeout
         self._ex = expire_timeout
-        self.lua_release = self._client.register_script(self.LUA_RELEASE)
 
     @property
-    def name(self) -> LockKey:
-        return self._name
+    def name(self) -> str:
+        return (
+            self._name
+            if isinstance(self._name, str)
+            else self._name.decode("utf-8")
+        )
 
     @property
     def token(self) -> bytes:
         return self._uuid
 
     @staticmethod
-    def _validate_timeout(blocking_timeout: int):
+    def _validate_timeout(blocking_timeout: float):
         if not blocking_timeout:
             raise InvalidArgsError(
                 "A `blocking_timeout` argument should be provided at the "
                 "time of initializing the `Lock` class."
             )
         elif (
-            not isinstance(blocking_timeout, (int, float))
+            not isinstance(blocking_timeout, float)
             or blocking_timeout < 0
         ):
             raise InvalidArgsError(
-                "A `blocking_timeout` argument should be integer of float and "
-                "cannot be negative."
+                "A `blocking_timeout` argument should be float and cannot be "
+                "negative."
             )
 
 
-class BaseSyncLock(BaseLock):
+class BaseSyncLock(BaseLock[Redis]):
     """Base Redis lock implementation"""
 
     def __enter__(self):
@@ -86,14 +90,14 @@ class BaseSyncLock(BaseLock):
         self.release()
 
     @abstractmethod
-    def acquire(self, *args, **kwargs):
+    def acquire(self, *args, **kwargs) -> bool:
         """Try to acquire a lock"""
         raise NotImplementedError(
             "The `acquire` method should be implemented!"
         )
 
     @abstractmethod
-    def release(self):
+    def release(self) -> bool:
         """Release the owned lock"""
         raise NotImplementedError(
             "The `release` method should be implemented!"
