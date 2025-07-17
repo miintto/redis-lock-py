@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Generic
+from typing import Generic, Optional, Union
 from uuid import uuid4
 
 from redis import Redis
 from redis_lock.exceptions import AcquireFailedError, InvalidArgsError
-from redis_lock.types import LockKey, RedisClient, TimeOutType
+from redis_lock.types import RedisClient
 
 
 class BaseLock(Generic[RedisClient], ABC):
@@ -27,9 +27,9 @@ class BaseLock(Generic[RedisClient], ABC):
     def __init__(
         self,
         client: RedisClient,
-        name: LockKey,
-        blocking_timeout: float = default_blocking_timeout,
-        expire_timeout: TimeOutType = None,
+        name: Union[bytes, str],
+        blocking_timeout: Union[int, float] = default_blocking_timeout,
+        expire_timeout: Optional[int] = None,
     ):
         """Base Redis lock interface
 
@@ -40,13 +40,13 @@ class BaseLock(Generic[RedisClient], ABC):
                 a lock to be acquired.
             expire_timeout: The maximum lifetime of acquired lock.
         """
-        self._client = client
+        self._client: RedisClient = client
         if not name:
             raise InvalidArgsError("A `name` argument should be required.")
         self._name = name
         self._uuid = uuid4().hex.encode()
         self._validate_timeout(blocking_timeout)
-        self._blocking_timeout = blocking_timeout
+        self._blocking_timeout = float(blocking_timeout)
         self._ex = expire_timeout
 
     @property
@@ -69,12 +69,12 @@ class BaseLock(Generic[RedisClient], ABC):
                 "time of initializing the `Lock` class."
             )
         elif (
-            not isinstance(blocking_timeout, float)
+            not isinstance(blocking_timeout, (int, float))
             or blocking_timeout < 0
         ):
             raise InvalidArgsError(
-                "A `blocking_timeout` argument should be float and cannot be "
-                "negative."
+                "A `blocking_timeout` argument should be integer of float and "
+                "cannot be negative."
             )
 
 
