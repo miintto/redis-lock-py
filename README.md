@@ -24,7 +24,7 @@ $> pip install redis-lock-py
 
 ### Dependencies
 - Python >= 3.10
-- redis-py >= 5.2.0
+- redis-py >= 7.0.1
 
 ## 3. Usage
 
