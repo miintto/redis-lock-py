@@ -7,6 +7,7 @@ from redis import Redis
 from redis_lock import RedisLock, RedisSpinLock
 from redis_lock.exceptions import (
     AcquireFailedError,
+    ExtendFailedError,
     InvalidArgsError,
     LockNotOwnedError,
 )
@@ -86,6 +87,41 @@ class TestLock:
         t.join()
         assert .5 < time.time() - current < 1
 
+    def test_extend(self, redis: Redis):
+        name = "test_extend"
+        lock = RedisLock(redis, name, expire_timeout=10)
+        assert lock.acquire()
+        ttl_before = redis.ttl(name)
+        assert lock.extend(20)
+        ttl_after = redis.ttl(name)
+        assert ttl_after > ttl_before
+        lock.release()
+
+    def test_extend_non_owned_lock(self, redis: Redis):
+        name = "test_extend_non_owned_lock"
+        lock = RedisLock(redis, name, expire_timeout=10)
+        assert lock.acquire()
+        redis.set(name, lock.token + b"foo")
+        with pytest.raises(ExtendFailedError):
+            lock.extend(20)
+        redis.delete(name)
+
+    def test_extend_without_expire(self, redis: Redis):
+        name = "test_extend_without_expire"
+        lock = RedisLock(redis, name)
+        assert lock.acquire()
+        with pytest.raises(ExtendFailedError):
+            lock.extend(20)
+        lock.release()
+
+    def test_extend_after_release(self, redis: Redis):
+        name = "test_extend_after_release"
+        lock = RedisLock(redis, name, expire_timeout=10)
+        assert lock.acquire()
+        lock.release()
+        with pytest.raises(ExtendFailedError):
+            lock.extend(20)
+
     def test_spin_lock(self, redis: Redis):
         name = "test_spin_lock"
         with RedisSpinLock(redis, name):
@@ -106,4 +142,23 @@ class TestLock:
         redis.set(name, lock.token + b"foo")
         with pytest.raises(LockNotOwnedError):
             lock.release()
+        redis.delete(name)
+
+    def test_spin_lock_extend(self, redis: Redis):
+        name = "test_spin_lock_extend"
+        lock = RedisSpinLock(redis, name, expire_timeout=10)
+        assert lock.acquire()
+        ttl_before = redis.ttl(name)
+        assert lock.extend(20)
+        ttl_after = redis.ttl(name)
+        assert ttl_after > ttl_before
+        lock.release()
+
+    def test_spin_lock_extend_non_owned(self, redis: Redis):
+        name = "test_spin_lock_extend_non_owned"
+        lock = RedisSpinLock(redis, name, expire_timeout=10)
+        assert lock.acquire()
+        redis.set(name, lock.token + b"foo")
+        with pytest.raises(ExtendFailedError):
+            lock.extend(20)
         redis.delete(name)

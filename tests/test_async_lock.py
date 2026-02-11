@@ -7,6 +7,7 @@ from redis.asyncio import Redis
 from redis_lock.asyncio import RedisLock
 from redis_lock.exceptions import (
     AcquireFailedError,
+    ExtendFailedError,
     InvalidArgsError,
     LockNotOwnedError,
 )
@@ -95,3 +96,42 @@ class TestAsyncLock:
             asyncio.create_task(release_lock()),
         )
         assert .5 < time.time() - current < 1
+
+    @pytest.mark.asyncio
+    async def test_extend(self, aredis: Redis):
+        name = "async_test_extend"
+        lock = RedisLock(aredis, name, expire_timeout=10)
+        assert await lock.acquire()
+        ttl_before = await aredis.ttl(name)
+        assert await lock.extend(20)
+        ttl_after = await aredis.ttl(name)
+        assert ttl_after > ttl_before
+        await lock.release()
+
+    @pytest.mark.asyncio
+    async def test_extend_non_owned_lock(self, aredis: Redis):
+        name = "async_test_extend_non_owned_lock"
+        lock = RedisLock(aredis, name, expire_timeout=10)
+        assert await lock.acquire()
+        await aredis.set(name, lock.token + b"foo")
+        with pytest.raises(ExtendFailedError):
+            await lock.extend(20)
+        await aredis.delete(name)
+
+    @pytest.mark.asyncio
+    async def test_extend_without_expire(self, aredis: Redis):
+        name = "async_test_extend_without_expire"
+        lock = RedisLock(aredis, name)
+        assert await lock.acquire()
+        with pytest.raises(ExtendFailedError):
+            await lock.extend(20)
+        await lock.release()
+
+    @pytest.mark.asyncio
+    async def test_extend_after_release(self, aredis: Redis):
+        name = "async_test_extend_after_release"
+        lock = RedisLock(aredis, name, expire_timeout=10)
+        assert await lock.acquire()
+        await lock.release()
+        with pytest.raises(ExtendFailedError):
+            await lock.extend(20)
