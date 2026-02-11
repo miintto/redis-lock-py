@@ -12,3 +12,7 @@ class LockNotOwnedError(RedisLockError):
 
 class AcquireFailedError(RedisLockError):
     pass
+
+
+class ExtendFailedError(RedisLockError):
+    pass

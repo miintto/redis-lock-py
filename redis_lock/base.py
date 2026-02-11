@@ -24,6 +24,20 @@ class BaseLock(Generic[RedisClient], ABC):
         return 1
     """
 
+    # keys: (Lock.name,)
+    # args: (Lock.token, additional_time)
+    LUA_EXTEND = """
+        if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+            return 0
+        end
+        local expiration = redis.call("TTL", KEYS[1])
+        if expiration < 0 then
+            return 0
+        end
+        redis.call("EXPIRE", KEYS[1], expiration + ARGV[2])
+        return 1
+    """
+
     def __init__(
         self,
         client: RedisClient,
