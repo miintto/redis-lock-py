@@ -102,3 +102,10 @@ class BaseSyncLock(BaseLock[Redis]):
         raise NotImplementedError(
             "The `release` method should be implemented!"
         )
+
+    @abstractmethod
+    def extend(self, additional_time: int) -> bool:
+        """Extend the owned lock"""
+        raise NotImplementedError(
+            "The `extend` method should be implemented!"
+        )
