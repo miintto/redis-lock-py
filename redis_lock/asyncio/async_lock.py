@@ -3,7 +3,7 @@ import time
 from redis.asyncio.client import PubSub
 
 from redis_lock.asyncio.base import BaseAsyncLock
-from redis_lock.exceptions import LockNotOwnedError
+from redis_lock.exceptions import ExtendFailedError, LockNotOwnedError
 
 
 class RedisLock(BaseAsyncLock):
@@ -86,4 +86,22 @@ class RedisLock(BaseAsyncLock):
             args=(self.token, self.unlock_message),
         ):
             raise LockNotOwnedError("Unable to release non-owned lock.")
+        return True
+
+    async def extend(self, additional_time: int) -> bool:
+        """Extend the owned lock
+
+        Args:
+            additional_time: The additional time in seconds to extend the lock.
+
+        Returns:
+            bool: `True` if the lock was successfully extended,
+                `False` otherwise.
+        """
+        extend_script = self._client.register_script(self.LUA_EXTEND)
+        if not await extend_script(
+            keys=(self.name,),
+            args=(self.token, additional_time),
+        ):
+            raise ExtendFailedError("Unable to extend non-owned lock.")
         return True

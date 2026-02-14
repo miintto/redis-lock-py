@@ -3,7 +3,7 @@ import time
 from redis.client import PubSub
 
 from redis_lock.base import BaseSyncLock
-from redis_lock.exceptions import LockNotOwnedError
+from redis_lock.exceptions import ExtendFailedError, LockNotOwnedError
 
 
 class RedisLock(BaseSyncLock):
@@ -86,4 +86,22 @@ class RedisLock(BaseSyncLock):
             args=(self.token, self.unlock_message),
         ):
             raise LockNotOwnedError("Unable to release non-owned lock.")
+        return True
+
+    def extend(self, additional_time: int) -> bool:
+        """Extend the owned lock
+
+        Args:
+            additional_time: The additional time in seconds to extend the lock.
+
+        Returns:
+            bool: `True` if the lock was successfully extended,
+                `False` otherwise.
+        """
+        extend_script = self._client.register_script(self.LUA_EXTEND)
+        if not extend_script(
+            keys=(self.name,),
+            args=(self.token, additional_time),
+        ):
+            raise ExtendFailedError("Unable to extend non-owned lock.")
         return True
